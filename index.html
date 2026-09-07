@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>文化祭受付システム</title>
-  <!-- QR生成ライブラリ & QRスキャナーライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
@@ -13,9 +12,10 @@
     h1 { margin: 0; font-size: 19px; display: flex; align-items: center; gap: 8px; }
     button { padding: 9px 14px; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; }
     .btn-main { background: #007bff; color: white; }
-    .btn-camera { background: #6f42c1; color: white; display: flex; align-items: center; gap: 6px; }
+    .btn-camera { background: #6f42c1; color: white; }
     .btn-qrshow { background: #fd7e14; color: white; }
     .btn-add { background: #28a745; color: white; }
+    .btn-settings { background: #495057; color: white; }
     .btn-lock { background: transparent; border: 1px solid #adb5bd; color: #6c757d; }
     .btn-checkin { background: #e2e8f0; color: #4a5568; }
     .btn-checked { background: #28a745; color: white; }
@@ -30,7 +30,7 @@
     .next-card { background: rgba(255,255,255,0.12); padding: 10px 14px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
 
     .controls { display: flex; flex-wrap: wrap; gap: 10px; background: white; padding: 14px 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px; align-items: center; }
-    input[type="text"], select { padding: 9px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; }
+    input[type="text"], input[type="number"], select, textarea { padding: 9px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
     input[type="text"] { flex: 1; min-width: 180px; }
 
     .table-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow-x: auto; }
@@ -40,11 +40,11 @@
     tr.checked-row { background: #f0fdf4; }
     .id-tag { font-weight: bold; color: #007bff; font-family: monospace; background: #eaf2ff; padding: 3px 6px; border-radius: 6px; }
 
-    /* モーダル各種 */
+    /* モーダル */
     .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; padding: 20px; z-index: 100; }
-    .modal-content { background: white; padding: 24px; border-radius: 14px; width: 100%; max-width: 420px; text-align: center; }
+    .modal-content { background: white; padding: 24px; border-radius: 14px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; text-align: center; }
 
-    /* ★ 二段階認証画面（オーバーレイ） */
+    /* 二段階認証画面 */
     #authOverlay { position: fixed; inset: 0; background: #1a1e24; display: flex; justify-content: center; align-items: center; z-index: 999; }
     .auth-card { background: #252b36; padding: 26px; border-radius: 18px; color: white; width: 300px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
     .pass-dots { display: flex; justify-content: center; gap: 12px; margin: 16px 0 20px; }
@@ -56,14 +56,15 @@
     .key-fn { font-size: 15px; background: #2a323d; color: #a0aec0; }
     #patternStep { display: none; }
     #patternCanvas { background: #1a1e24; border-radius: 12px; touch-action: none; margin: 0 auto; display: block; }
+
+    .helper-box { background: #f8f9fa; border: 1px solid #dee2e6; padding: 12px; border-radius: 8px; margin-bottom: 12px; text-align: left; }
   </style>
 </head>
 <body>
 
-<!-- ★ 二段階認証画面 -->
+<!-- 二段階認証画面 -->
 <div id="authOverlay">
   <div class="auth-card">
-    <!-- 第1段階：テンキー -->
     <div id="keypadStep">
       <h3 style="margin:0;">🔒 運営ログイン</h3>
       <p style="font-size:12px; color:#a0aec0; margin:6px 0;">パスコードを入力してください</p>
@@ -72,23 +73,14 @@
         <div class="dot" id="d3"></div><div class="dot" id="d4"></div>
       </div>
       <div id="lockMessage" style="font-size:13px; color:#f56565; height:18px; margin-bottom:10px;"></div>
-      <div class="keypad" id="keypadButtons">
-        <button class="key" onclick="pressKey('1')">1</button>
-        <button class="key" onclick="pressKey('2')">2</button>
-        <button class="key" onclick="pressKey('3')">3</button>
-        <button class="key" onclick="pressKey('4')">4</button>
-        <button class="key" onclick="pressKey('5')">5</button>
-        <button class="key" onclick="pressKey('6')">6</button>
-        <button class="key" onclick="pressKey('7')">7</button>
-        <button class="key" onclick="pressKey('8')">8</button>
-        <button class="key" onclick="pressKey('9')">9</button>
-        <button class="key key-fn" onclick="clearPin()">C</button>
-        <button class="key" onclick="pressKey('0')">0</button>
-        <button class="key key-fn" onclick="backspacePin()">⌫</button>
+      <div class="keypad">
+        <button class="key" onclick="pressKey('1')">1</button><button class="key" onclick="pressKey('2')">2</button><button class="key" onclick="pressKey('3')">3</button>
+        <button class="key" onclick="pressKey('4')">4</button><button class="key" onclick="pressKey('5')">5</button><button class="key" onclick="pressKey('6')">6</button>
+        <button class="key" onclick="pressKey('7')">7</button><button class="key" onclick="pressKey('8')">8</button><button class="key" onclick="pressKey('9')">9</button>
+        <button class="key key-fn" onclick="clearPin()">C</button><button class="key" onclick="pressKey('0')">0</button><button class="key key-fn" onclick="backspacePin()">⌫</button>
       </div>
     </div>
 
-    <!-- 第2段階：パターンロック -->
     <div id="patternStep">
       <h3 style="margin:0;">🔒 パターン認証</h3>
       <p style="font-size:12px; color:#a0aec0; margin:6px 0 14px;">パターンを一筆書きでなぞってください</p>
@@ -102,9 +94,10 @@
 <div class="header">
   <h1>📋 受付・予約管理</h1>
   <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-    <button class="btn-camera" onclick="openScannerModal()">📷 QRコードで受付</button>
-    <button class="btn-qrshow" onclick="openCustomerQrModal()">📌 客用 予約QR表示</button>
+    <button class="btn-camera" onclick="openScannerModal()">📷 QRで受付</button>
+    <button class="btn-qrshow" onclick="openCustomerQrModal()">📌 予約QR表示</button>
     <button class="btn-add" onclick="openAddModal()">＋ 手動受付</button>
+    <button class="btn-settings" onclick="openSettingsModal()">⚙️ 枠設定</button>
     <button class="btn-main" onclick="fetchData()">🔄 更新</button>
     <button class="btn-lock" onclick="logoutAdmin()">🔒 再ロック</button>
   </div>
@@ -149,13 +142,12 @@
   </div>
 </div>
 
-<!-- 2. お客さま案内用QRコード表示モーダル -->
+<!-- 2. 客用予約QR表示モーダル -->
 <div class="modal" id="customerQrModal">
   <div class="modal-content">
     <h2 style="margin-top:0;">📱 企画予約はこちら</h2>
     <p style="font-size:13px; color:#666;">カメラで読み取ってご予約ください</p>
     <div id="customerQrArea" style="display:flex; justify-content:center; margin:16px 0;"></div>
-    <p style="font-size:12px; color:#999;">※この画面をお客様に向けて立てかけておくか、印刷してご活用ください。</p>
     <button class="btn-main" style="width:100%; padding:10px;" onclick="closeCustomerQrModal()">閉じる</button>
   </div>
 </div>
@@ -166,7 +158,7 @@
     <h3 style="margin-top:0;">➕ 当日手動受付</h3>
     <form id="addForm">
       <label style="font-size:13px; font-weight:bold;">グループ名</label>
-      <input type="text" id="addGroup" placeholder="例: 手動受付1組目" required style="width:100%; margin:4px 0 10px; box-sizing:border-box;">
+      <input type="text" id="addGroup" placeholder="例: 手動受付1組目" required style="width:100%; margin:4px 0 10px;">
       <label style="font-size:13px; font-weight:bold;">人数</label>
       <select id="addPeople" style="width:100%; margin:4px 0 10px;">
         <option value="1名">1名</option><option value="2名">2名</option><option value="3名">3名</option><option value="4名">4名</option><option value="5名以上">5名以上</option>
@@ -179,20 +171,51 @@
   </div>
 </div>
 
+<!-- ★ 4. 予約枠・数値設定モーダル -->
+<div class="modal" id="settingsModal">
+  <div class="modal-content" style="text-align:left;">
+    <h3 style="margin-top:0;">⚙️ 予約枠・定員の設定</h3>
+
+    <label style="font-size:13px; font-weight:bold;">1枠あたりの定員（最大組数）</label>
+    <input type="number" id="settingMaxPerSlot" min="1" max="50" style="width:100%; margin:4px 0 14px;">
+
+    <!-- 自動生成アシスタント -->
+    <div class="helper-box">
+      <div style="font-weight:bold; font-size:12px; margin-bottom:6px; color:#495057;">⚡ 時間枠の一括自動生成</div>
+      <div style="display:flex; gap:6px; margin-bottom:6px;">
+        <input type="text" id="genStart" value="10:00" placeholder="開始" style="flex:1;">
+        <span style="align-self:center;">〜</span>
+        <input type="text" id="genEnd" value="15:00" placeholder="終了" style="flex:1;">
+      </div>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <input type="number" id="genInterval" value="20" min="5" max="120" style="width:70px;">
+        <span style="font-size:12px;">分間隔</span>
+        <button type="button" class="btn-main" style="margin-left:auto; padding:6px 12px; font-size:12px;" onclick="generateSlots()">一括作成</button>
+      </div>
+    </div>
+
+    <label style="font-size:13px; font-weight:bold;">時間枠リスト（1行に1つ）</label>
+    <p style="font-size:11px; color:#666; margin:2px 0 4px;">※手動で直接編集・追加・削除も可能です。</p>
+    <textarea id="settingSlotsText" rows="7" style="width:100%; font-family:monospace; margin-bottom:14px;"></textarea>
+
+    <button type="button" class="btn-main" style="width:100%; padding:10px;" id="saveSettingsBtn" onclick="saveSettings()">設定を保存する</button>
+    <button type="button" class="btn-cancel" style="width:100%; margin-top:8px; padding:8px;" onclick="closeSettingsModal()">閉じる</button>
+  </div>
+</div>
+
 <script>
   const GAS_URL = "https://script.google.com/macros/s/AKfycbw2G4hRQjWnz_NhotKxYeTqOlW6cS-AonuiHDrLFvhtbi0Ujl0HKomu6Mo5rqknFa5PTw/exec";
-  const SECRET_KEY = "bunkasai2026"; // 予約画面を開くための合言葉
-  const CORRECT_PIN = "2001";        // ★ テンキー暗証番号（4桁）
-  const CORRECT_PATTERN = [2, 1, 0, 4, 6, 7, 8]; // ★ パターン認証配列
+  const SECRET_KEY = "bunkasai2026";
+  const CORRECT_PIN = "2001";
+  const CORRECT_PATTERN = [2, 1, 0, 4, 6, 7, 8];
 
   const AUTH_KEY = "staff_auth_passed_v2";
   const LOCK_UNTIL_KEY = "keypad_lock_until";
 
   // ==========================================
-  // ★ 二段階認証システム
+  // 二段階認証
   // ==========================================
-  let currentPin = "";
-  let failCount = 0;
+  let currentPin = "", failCount = 0;
 
   function updatePinDots() {
     for (let i = 1; i <= 4; i++) {
@@ -205,9 +228,7 @@
     if (currentPin.length < 4) {
       currentPin += num;
       updatePinDots();
-      if (currentPin.length === 4) {
-        setTimeout(verifyPin, 150);
-      }
+      if (currentPin.length === 4) setTimeout(verifyPin, 150);
     }
   }
 
@@ -235,8 +256,7 @@
       failCount++;
       clearPin();
       if (failCount >= 3) {
-        const lockTime = Date.now() + 30000; // 3回ミスで30秒ロック
-        localStorage.setItem(LOCK_UNTIL_KEY, lockTime);
+        localStorage.setItem(LOCK_UNTIL_KEY, Date.now() + 30000);
         document.getElementById("lockMessage").textContent = "3回間違えました。30秒間ロックします。";
       } else {
         document.getElementById("lockMessage").textContent = `番号が違います（あと${3 - failCount}回）`;
@@ -246,10 +266,8 @@
 
   // パターンロック
   const JUMP_TABLE = { "0-2": 1, "2-0": 1, "3-5": 4, "5-3": 4, "6-8": 7, "8-6": 7, "0-6": 3, "6-0": 3, "1-7": 4, "7-1": 4, "2-8": 5, "8-2": 5, "0-8": 4, "8-0": 4, "2-6": 4, "6-2": 4 };
-  const canvas = document.getElementById("patternCanvas");
-  const ctx = canvas.getContext("2d");
-  const points = [];
-  const coords = [45, 120, 195];
+  const canvas = document.getElementById("patternCanvas"), ctx = canvas.getContext("2d");
+  const points = [], coords = [45, 120, 195];
   for (let r = 0; r < 3; r++) { for (let c = 0; c < 3; c++) points.push({ id: points.length, x: coords[c], y: coords[r] }); }
   let isDrawing = false, selectedPoints = [], currentPos = { x: 0, y: 0 };
 
@@ -282,8 +300,7 @@
 
   function getCanvasPos(e) {
     const rect = canvas.getBoundingClientRect();
-    const cx = e.touches ? e.touches[0].clientX : e.clientX;
-    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
     return { x: cx - rect.left, y: cy - rect.top };
   }
 
@@ -324,7 +341,93 @@
   }
 
   // ==========================================
-  // ★ QRコード受付スキャナー（html5-qrcode）
+  // ★ 予約枠・数値の設定モーダル処理
+  // ==========================================
+  let currentMaxPerSlot = 3;
+
+  function openSettingsModal() {
+    document.getElementById("settingMaxPerSlot").value = currentMaxPerSlot;
+    document.getElementById("settingSlotsText").value = allSlots.join("\n");
+    document.getElementById("settingsModal").style.display = "flex";
+  }
+
+  function closeSettingsModal() {
+    document.getElementById("settingsModal").style.display = "none";
+  }
+
+  // 時間枠の自動生成アシスタント
+  function generateSlots() {
+    const startStr = document.getElementById("genStart").value.trim();
+    const endStr = document.getElementById("genEnd").value.trim();
+    const interval = Number(document.getElementById("genInterval").value);
+
+    const [sh, sm] = startStr.split(":").map(Number);
+    const [eh, em] = endStr.split(":").map(Number);
+
+    let curMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    const generated = [];
+
+    const pad = (n) => String(n).padStart(2, "0");
+
+    while (curMin + interval <= endMin) {
+      const sH = Math.floor(curMin / 60), sM = curMin % 60;
+      const nH = Math.floor((curMin + interval) / 60), nM = (curMin + interval) % 60;
+      generated.push(`${pad(sH)}:${pad(sM)} - ${pad(nH)}:${pad(nM)}`);
+      curMin += interval;
+    }
+
+    if (generated.length === 0) {
+      alert("開始・終了時刻を確認してください");
+      return;
+    }
+    document.getElementById("settingSlotsText").value = generated.join("\n");
+  }
+
+  // 設定の保存送信
+  async function saveSettings() {
+    const maxVal = Number(document.getElementById("settingMaxPerSlot").value);
+    const lines = document.getElementById("settingSlotsText").value
+      .split("\n")
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    if (lines.length === 0) {
+      alert("時間枠を1つ以上入力してください");
+      return;
+    }
+
+    const btn = document.getElementById("saveSettingsBtn");
+    btn.disabled = true;
+    btn.textContent = "保存中...";
+
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "saveSettings",
+          maxPerSlot: maxVal,
+          slots: lines
+        })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert("予約枠の設定を更新しました！");
+        closeSettingsModal();
+        fetchData();
+      } else {
+        alert("保存に失敗しました");
+      }
+    } catch (e) {
+      alert("通信エラーが発生しました");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "設定を保存する";
+    }
+  }
+
+  // ==========================================
+  // QRコードスキャナー・予約QR生成
   // ==========================================
   let html5QrCode = null;
 
@@ -368,16 +471,11 @@
     document.getElementById("scannerModal").style.display = "none";
   }
 
-  // ==========================================
-  // ★ お客様用「予約QRコード」生成表示
-  // ==========================================
   function openCustomerQrModal() {
     const qrArea = document.getElementById("customerQrArea");
     qrArea.innerHTML = "";
-    // 現在のサイトURLから予約用ページへのURLを生成
     const baseUrl = window.location.href.split("?")[0].replace("index.html", "");
     const reserveUrl = `${baseUrl}reserve.html?key=${SECRET_KEY}`;
-    
     new QRCode(qrArea, { text: reserveUrl, width: 220, height: 220 });
     document.getElementById("customerQrModal").style.display = "flex";
   }
@@ -412,10 +510,13 @@
       const json = await res.json();
       allReservations = json.reservations;
       allSlots = json.slots;
+      currentMaxPerSlot = json.maxPerSlot || 3;
+
       const fSel = document.getElementById("slotFilter"), aSel = document.getElementById("addSlot");
-      if (fSel.options.length <= 1) {
-        allSlots.forEach(s => { fSel.add(new Option(s, s)); aSel.add(new Option(s, s)); });
-      }
+      fSel.innerHTML = '<option value="">すべての時間帯</option>';
+      aSel.innerHTML = '';
+      allSlots.forEach(s => { fSel.add(new Option(s, s)); aSel.add(new Option(s, s)); });
+
       filterData();
       updateNextBoard();
     } catch (e) {}
