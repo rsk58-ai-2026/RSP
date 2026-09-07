@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文化祭企画 予約受付</title>
+  <!-- QRコード生成ライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; display: flex; justify-content: center; }
+    .card { background: white; padding: 24px; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    h2 { margin-top: 0; font-size: 20px; text-align: center; color: #333; }
+    .desc { font-size: 13px; color: #666; margin-bottom: 20px; line-height: 1.5; background: #fdf6e2; padding: 10px; border-radius: 6px; }
+    label { display: block; margin-top: 14px; font-weight: bold; font-size: 14px; color: #444; }
+    input, select { width: 100%; padding: 12px; margin-top: 6px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; box-sizing: border-box; }
+    button { width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
+    button:disabled { background: #bbb !important; cursor: not-allowed; }
+    .btn-primary { background: #007bff; color: white; margin-top: 20px; }
+    .btn-outline { background: transparent; border: 1px solid #007bff; color: #007bff; margin-top: 12px; }
+    .btn-danger { background: transparent; border: 1px solid #dc3545; color: #dc3545; margin-top: 10px; }
+    .btn-text { background: none; border: none; color: #888; font-size: 12px; margin-top: 16px; text-decoration: underline; }
+    .loading { text-align: center; color: #666; font-size: 14px; margin: 20px 0; }
+    
+    #completeArea, #editArea { display: none; }
+    .id-badge { font-size: 28px; font-weight: bold; color: #007bff; letter-spacing: 2px; text-align: center; margin-top: 4px; }
+    
+    /* ★ 受付用QRコード枠 */
+    .qr-ticket-box { background: #fafafa; border: 2px dashed #007bff; padding: 16px; border-radius: 12px; margin: 16px 0; text-align: center; }
+    #ticketQrCode { display: flex; justify-content: center; margin: 10px 0; }
+
+    .timer-banner { padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 14px; font-weight: bold; }
+    .timer-waiting { background: #e8f4fd; color: #0d6efd; border: 1px solid #b6d4fe; }
+    .timer-alert { background: #fff3cd; color: #856404; border: 2px solid #ffc107; }
+    .timer-active { background: #d1e7dd; color: #0f5132; border: 2px solid #198754; }
+    .timer-ended { background: #e9ecef; color: #6c757d; }
+
+    .ticket-info { text-align: left; background: #fafafa; border: 1px solid #eee; padding: 14px; border-radius: 8px; font-size: 14px; margin-top: 12px; }
+    .ticket-info div { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <!-- 予約フォーム -->
+  <div id="formArea">
+    <h2>🎯 企画予約フォーム</h2>
+    <div class="desc">
+      ※個人情報は不要です。ニックネーム等でお気軽にご予約ください。<br>
+      ※予約完了後に<b>受付専用のQRコード</b>が発行されます。
+    </div>
+
+    <form id="reservationForm">
+      <label>グループ名（呼び出し名）</label>
+      <input type="text" id="groupName" placeholder="例: たこやき、チーム青" required maxlength="15">
+
+      <label>参加人数</label>
+      <select id="people" required>
+        <option value="1名">1名</option><option value="2名">2名</option><option value="3名">3名</option><option value="4名">4名</option><option value="5名以上">5名以上</option>
+      </select>
+
+      <label>希望時間帯</label>
+      <div id="slotLoading" class="loading">空き状況を読み込み中...</div>
+      <select id="slotSelect" style="display:none;" required></select>
+
+      <button type="submit" id="submitBtn" class="btn-primary">予約を確定する</button>
+    </form>
+  </div>
+
+  <!-- チケット画面（受付用QRコード付き） -->
+  <div id="completeArea">
+    <h2>🎫 予約チケット</h2>
+    
+    <div id="countdownBanner" class="timer-banner timer-waiting">計算中...</div>
+    
+    <!-- ★ スタッフが読み取る受付用QRコード -->
+    <div class="qr-ticket-box">
+      <div style="font-size:12px; color:#555; font-weight:bold;">【受付提示用QRコード】</div>
+      <div id="ticketQrCode"></div>
+      <div class="id-badge" id="dispId">----</div>
+      <div style="font-size:11px; color:#777;">受付スタッフにこのQRコードをご提示ください</div>
+    </div>
+
+    <div class="ticket-info">
+      <div><b>時間帯:</b> <span id="dispSlot"></span></div>
+      <div><b>グループ名:</b> <span id="dispGroup"></span></div>
+      <div><b>人数:</b> <span id="dispPeople"></span></div>
+    </div>
+
+    <div style="background:#fff3cd; color:#856404; padding:10px; border-radius:8px; font-size:12px; margin-top:12px;">
+      ⚠️ <b>充電切れにご注意ください</b><br>
+      この画面のスクリーンショットを撮っておくことを推奨します。
+    </div>
+
+    <div style="margin-top: 14px; display:flex; flex-direction:column;">
+      <button type="button" class="btn-outline" id="toEditBtn">✏️ 予約内容を変更する</button>
+      <button type="button" class="btn-danger" id="cancelBtn">🗑️ この予約をキャンセルする</button>
+      <button type="button" class="btn-text" id="resetBtn">この表示を消して新しく予約する</button>
+    </div>
+  </div>
+
+  <!-- 変更フォーム -->
+  <div id="editArea">
+    <h2>✏️ 予約内容の変更</h2>
+    <form id="editForm">
+      <label>グループ名</label>
+      <input type="text" id="editGroupName" required maxlength="15">
+      <label>参加人数</label>
+      <select id="editPeople" required>
+        <option value="1名">1名</option><option value="2名">2名</option><option value="3名">3名</option><option value="4名">4名</option><option value="5名以上">5名以上</option>
+      </select>
+      <label>希望時間帯</label>
+      <div id="editSlotLoading" class="loading">空き状況を確認中...</div>
+      <select id="editSlotSelect" style="display:none;" required></select>
+      <button type="submit" id="updateBtn" class="btn-primary">変更を保存する</button>
+      <button type="button" id="cancelEditBtn" class="btn-outline">戻る</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbw2G4hRQjWnz_NhotKxYeTqOlW6cS-AonuiHDrLFvhtbi0Ujl0HKomu6Mo5rqknFa5PTw/exec";
+  const SECRET_KEY = "bunkasai2026";
+
+  // ★ QRコード読み取り以外の直接アクセスを防止（運営画面にリダイレクト）
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("key") !== SECRET_KEY && !localStorage.getItem("my_bunkasai_ticket")) {
+    window.location.href = "index.html";
+  }
+
+  let countdownInterval = null;
+
+  function parseSlotTime(slotStr) {
+    if (!slotStr) return null;
+    const parts = slotStr.split("-").map(s => s.trim());
+    const [sh, sm] = parts[0].split(":").map(Number), [eh, em] = parts[1].split(":").map(Number);
+    const now = new Date();
+    return { start: new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0), end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0) };
+  }
+
+  function startCountdown(slotStr) {
+    if (countdownInterval) clearInterval(countdownInterval);
+    const banner = document.getElementById("countdownBanner");
+    function update() {
+      const times = parseSlotTime(slotStr);
+      if (!times) return;
+      const now = new Date();
+      const diffStart = times.start - now, diffEnd = times.end - now;
+
+      if (diffEnd <= 0) {
+        banner.className = "timer-banner timer-ended"; banner.innerHTML = "🏁 この予約枠は終了しました";
+      } else if (diffStart <= 0) {
+        banner.className = "timer-banner timer-active"; banner.innerHTML = "🎯 <b>現在案内中です！受付へどうぞ</b>";
+      } else {
+        const min = Math.floor(diffStart / 60000), sec = Math.floor((diffStart % 60000) / 1000);
+        if (min < 15) {
+          banner.className = "timer-banner timer-alert"; banner.innerHTML = `🔔 <b>まもなく開始です！（あと${min}分${sec}秒）</b>`;
+        } else {
+          banner.className = "timer-banner timer-waiting"; banner.innerHTML = `⏳ 開始まで あと <b>${min}分</b>`;
+        }
+      }
+    }
+    update();
+    countdownInterval = setInterval(update, 1000);
+  }
+
+  function showTicket(ticketData) {
+    document.getElementById("formArea").style.display = "none";
+    document.getElementById("editArea").style.display = "none";
+    document.getElementById("completeArea").style.display = "block";
+
+    document.getElementById("dispId").textContent = ticketData.id;
+    document.getElementById("dispSlot").textContent = ticketData.slot;
+    document.getElementById("dispGroup").textContent = ticketData.groupName;
+    document.getElementById("dispPeople").textContent = ticketData.people;
+
+    // ★ 受付用QRコードの生成
+    const qrContainer = document.getElementById("ticketQrCode");
+    qrContainer.innerHTML = "";
+    new QRCode(qrContainer, { text: ticketData.id, width: 140, height: 140 });
+
+    startCountdown(ticketData.slot);
+  }
+
+  async function loadSlots(selEl, loadEl, curSlot = null) {
+    loadEl.style.display = "block"; selEl.style.display = "none";
+    selEl.innerHTML = '<option value="">時間を選択してください</option>';
+    try {
+      const res = await fetch(GAS_URL);
+      const data = await res.json();
+      data.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.slot;
+        if (curSlot && item.slot === curSlot) { opt.textContent = `${item.slot} (現在の選択)`; opt.selected = true; }
+        else if (item.remaining <= 0) { opt.textContent = `${item.slot} (満席)`; opt.disabled = true; }
+        else { opt.textContent = `${item.slot} (残り${item.remaining}枠)`; }
+        selEl.appendChild(opt);
+      });
+      loadEl.style.display = "none"; selEl.style.display = "block";
+    } catch (e) { loadEl.textContent = "空き枠取得失敗"; }
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem("my_bunkasai_ticket");
+    if (saved) {
+      try { showTicket(JSON.parse(saved)); return; } catch (e) {}
+    }
+    loadSlots(document.getElementById("slotSelect"), document.getElementById("slotLoading"));
+  });
+
+  document.getElementById("reservationForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true; btn.textContent = "予約中...";
+
+    const payload = {
+      action: "create",
+      groupName: document.getElementById("groupName").value.trim(),
+      people: document.getElementById("people").value,
+      slot: document.getElementById("slotSelect").value
+    };
+
+    try {
+      const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
+      const r = await res.json();
+      if (r.success) {
+        const ticket = { id: r.id, slot: r.slot, groupName: r.groupName, people: r.people };
+        localStorage.setItem("my_bunkasai_ticket", JSON.stringify(ticket));
+        showTicket(ticket);
+      } else { alert(r.message); location.reload(); }
+    } catch (err) { alert("通信エラー"); btn.disabled = false; btn.textContent = "予約を確定する"; }
+  });
+
+  document.getElementById("cancelBtn").addEventListener("click", async () => {
+    const saved = JSON.parse(localStorage.getItem("my_bunkasai_ticket"));
+    if (!confirm(`予約（${saved.id}）をキャンセルしますか？`)) return;
+    await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "cancel", id: saved.id }) });
+    localStorage.removeItem("my_bunkasai_ticket");
+    location.reload();
+  });
+
+  document.getElementById("toEditBtn").addEventListener("click", () => {
+    const saved = JSON.parse(localStorage.getItem("my_bunkasai_ticket"));
+    document.getElementById("editGroupName").value = saved.groupName;
+    document.getElementById("editPeople").value = saved.people;
+    loadSlots(document.getElementById("editSlotSelect"), document.getElementById("editSlotLoading"), saved.slot);
+    document.getElementById("completeArea").style.display = "none";
+    document.getElementById("editArea").style.display = "block";
+  });
+
+  document.getElementById("cancelEditBtn").addEventListener("click", () => {
+    showTicket(JSON.parse(localStorage.getItem("my_bunkasai_ticket")));
+  });
+
+  document.getElementById("editForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const saved = JSON.parse(localStorage.getItem("my_bunkasai_ticket"));
+    const payload = { action: "update", id: saved.id, groupName: document.getElementById("editGroupName").value.trim(), people: document.getElementById("editPeople").value, slot: document.getElementById("editSlotSelect").value };
+    const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
+    const r = await res.json();
+    if (r.success) {
+      const updated = { id: r.id, slot: r.slot, groupName: r.groupName, people: r.people };
+      localStorage.setItem("my_bunkasai_ticket", JSON.stringify(updated));
+      alert("変更完了！"); showTicket(updated);
+    } else { alert(r.message); }
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (confirm("予約画面を閉じますか？")) { localStorage.removeItem("my_bunkasai_ticket"); location.reload(); }
+  });
+</script>
+</body>
+</html>
