@@ -42,7 +42,6 @@
     .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); justify-content: center; align-items: center; padding: 20px; z-index: 100; }
     .modal-content { background: white; padding: 24px; border-radius: 14px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; text-align: center; }
 
-    /* 二段階認証画面 */
     #authOverlay { position: fixed; inset: 0; background: #1a1e24; display: flex; justify-content: center; align-items: center; z-index: 999; }
     .auth-card { background: #252b36; padding: 26px; border-radius: 18px; color: white; width: 300px; text-align: center; }
     .pass-dots { display: flex; justify-content: center; gap: 12px; margin: 16px 0 20px; }
@@ -54,7 +53,6 @@
     #patternStep { display: none; }
     #patternCanvas { background: #1a1e24; border-radius: 12px; touch-action: none; margin: 0 auto; display: block; }
 
-    /* 受付照合モーダル専用スタイル */
     .verify-box { background: #f8fafc; border: 1.5px solid #cfd8dc; border-radius: 10px; padding: 14px; text-align: left; margin: 14px 0; }
     .verify-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
     .verify-label { color: #546e7a; font-weight: bold; }
@@ -66,7 +64,6 @@
 </head>
 <body>
 
-<!-- 二段階認証 -->
 <div id="authOverlay">
   <div class="auth-card">
     <div id="keypadStep">
@@ -94,7 +91,6 @@
   </div>
 </div>
 
-<!-- ヘッダー -->
 <div class="header">
   <h1>受付・予約管理システム</h1>
   <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -107,7 +103,6 @@
   </div>
 </div>
 
-<!-- NEXT案内ボード -->
 <div class="next-banner">
   <div class="next-header">
     <div class="next-title">[案内対象グループ]</div>
@@ -136,7 +131,7 @@
   </table>
 </div>
 
-<!-- 1. カメラQRスキャンモーダル -->
+<!-- QRスキャンモーダル -->
 <div class="modal" id="scannerModal">
   <div class="modal-content">
     <h3 style="margin-top:0;">QRコード読み取り</h3>
@@ -146,7 +141,7 @@
   </div>
 </div>
 
-<!-- 2. ★ 新設：本人・時刻確認＆承認モーダル -->
+<!-- 本人・時刻確認モーダル -->
 <div class="modal" id="verifyModal">
   <div class="modal-content" style="text-align:left;">
     <h3 style="margin-top:0; text-align:center;">受付確認・承認</h3>
@@ -164,7 +159,7 @@
   </div>
 </div>
 
-<!-- 3. 客用予約QR表示モーダル -->
+<!-- 客用予約QR表示モーダル -->
 <div class="modal" id="customerQrModal">
   <div class="modal-content">
     <h2 style="margin-top:0;">企画予約受付</h2>
@@ -174,7 +169,7 @@
   </div>
 </div>
 
-<!-- 4. 手動追加モーダル -->
+<!-- 手動追加モーダル -->
 <div class="modal" id="addModal">
   <div class="modal-content" style="text-align:left;">
     <h3 style="margin-top:0;">当日手動受付</h3>
@@ -193,7 +188,7 @@
   </div>
 </div>
 
-<!-- 5. 予約枠・数値設定モーダル -->
+<!-- 枠設定モーダル -->
 <div class="modal" id="settingsModal">
   <div class="modal-content" style="text-align:left;">
     <h3 style="margin-top:0;">予約枠・定員設定</h3>
@@ -221,13 +216,11 @@
 
 <script>
   const GAS_URL = "https://script.google.com/macros/s/AKfycbw2G4hRQjWnz_NhotKxYeTqOlW6cS-AonuiHDrLFvhtbi0Ujl0HKomu6Mo5rqknFa5PTw/exec";
-  const SECRET_KEY = "bunkasai2026";
   const CORRECT_PIN = "2001";
   const CORRECT_PATTERN = [2, 1, 0, 4, 6, 7, 8];
   const AUTH_KEY = "staff_auth_passed_v3";
 
-  // 認証関連
-  let currentPin = "", failCount = 0;
+  let currentPin = "";
   function updatePinDots() {
     for (let i = 1; i <= 4; i++) document.getElementById(`d${i}`).className = (i <= currentPin.length) ? "dot filled" : "dot";
   }
@@ -250,7 +243,6 @@
     }
   }
 
-  // パターン認証
   const JUMP_TABLE = { "0-2": 1, "2-0": 1, "3-5": 4, "5-3": 4, "6-8": 7, "8-6": 7, "0-6": 3, "6-0": 3, "1-7": 4, "7-1": 4, "2-8": 5, "8-2": 5, "0-8": 4, "8-0": 4, "2-6": 4, "6-2": 4 };
   const canvas = document.getElementById("patternCanvas"), ctx = canvas.getContext("2d");
   const points = [], coords = [45, 120, 195];
@@ -307,9 +299,7 @@
     if (confirm("端末をロックしますか？")) { localStorage.removeItem(AUTH_KEY); location.reload(); }
   }
 
-  // ==========================================
-  // ★ QRスキャナー ＆ 確認・承認フロー
-  // ==========================================
+  // QRスキャナー ＆ 照合確認フロー
   let html5QrCode = null;
   let verifyingReservationId = null;
 
@@ -322,7 +312,6 @@
     });
   }
 
-  // QR読み取り成功時（即時完了せず照合確認へ移行）
   async function onQrScanned(decodedText) {
     html5QrCode.stop().then(() => { html5QrCode.clear(); }).catch(() => {});
     document.getElementById("scannerModal").style.display = "none";
@@ -345,7 +334,6 @@
         document.getElementById("vfPeople").textContent = r.people;
         document.getElementById("vfStatus").textContent = r.status;
 
-        // 時刻整合性チェック
         const times = parseSlotTime(r.slot);
         const alertBox = document.getElementById("vfTimeAlert");
         const confirmBtn = document.getElementById("confirmCheckinBtn");
@@ -392,7 +380,6 @@
     verifyingReservationId = null;
   }
 
-  // スタッフによる「受付を承認する」押下時
   async function confirmCheckin() {
     if (!verifyingReservationId) return;
     const btn = document.getElementById("confirmCheckinBtn");
@@ -421,12 +408,13 @@
     }
   }
 
-  // 客用QR表示
+  // ★ お客様用QRコード生成（純粋な予約URL）
   function openCustomerQrModal() {
     const qrArea = document.getElementById("customerQrArea");
     qrArea.innerHTML = "";
     const base = window.location.href.split("?")[0].replace("index.html", "");
-    new QRCode(qrArea, { text: `${base}reserve.html?key=${SECRET_KEY}`, width: 200, height: 200 });
+    const reserveUrl = `${base}reserve.html`;
+    new QRCode(qrArea, { text: reserveUrl, width: 200, height: 200 });
     document.getElementById("customerQrModal").style.display = "flex";
   }
   function closeCustomerQrModal() { document.getElementById("customerQrModal").style.display = "none"; }
@@ -523,6 +511,7 @@
   function parseSlotTime(slotStr) {
     if (!slotStr) return null;
     const parts = slotStr.split("-").map(s => s.trim());
+    if (parts.length < 2) return null;
     const [sh, sm] = parts[0].split(":").map(Number), [eh, em] = parts[1].split(":").map(Number);
     const now = new Date();
     return { start: new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0), end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0) };
