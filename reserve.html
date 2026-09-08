@@ -4,27 +4,35 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>企画予約受付</title>
+  <!-- QRコード生成ライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 16px; display: flex; justify-content: center; color: #333; }
     .card { background: white; padding: 24px 20px; border-radius: 16px; width: 100%; max-width: 440px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); box-sizing: border-box; }
-    h2 { margin-top: 0; font-size: 20px; text-align: center; color: #222; }
-    .desc { font-size: 13px; color: #666; margin-bottom: 20px; line-height: 1.5; background: #fdf6e2; padding: 10px; border-radius: 8px; }
-    label { display: block; margin-top: 18px; font-weight: bold; font-size: 14px; color: #444; }
+    h2 { margin-top: 0; font-size: 20px; text-align: center; color: #222; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .desc { font-size: 13px; color: #666; margin-bottom: 20px; line-height: 1.5; background: #fdf6e2; padding: 12px; border-radius: 8px; border-left: 4px solid #f59e0b; }
+    label { display: flex; align-items: center; gap: 6px; margin-top: 18px; font-weight: bold; font-size: 14px; color: #444; }
+    
+    /* SVGアイコン共通スタイル */
+    .icon { width: 18px; height: 18px; fill: currentColor; display: inline-block; vertical-align: middle; }
+    .icon-lg { width: 36px; height: 36px; fill: currentColor; }
+    
     input[type="text"] { width: 100%; padding: 12px; margin-top: 6px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; box-sizing: border-box; }
 
+    /* 人数表示 */
     .people-display { width: 100%; padding: 12px 14px; margin-top: 6px; border: 1.5px solid #007bff; border-radius: 8px; background: #f8fbff; display: flex; justify-content: space-between; align-items: center; cursor: pointer; box-sizing: border-box; }
     .people-val { font-size: 18px; font-weight: bold; color: #007bff; }
-    .people-hint { font-size: 12px; color: #6c757d; }
+    .people-hint { font-size: 12px; color: #6c757d; font-weight: normal; }
 
+    /* 時間選択（タブ & グリッド） */
     .slot-tabs-wrapper { overflow-x: auto; white-space: nowrap; margin-top: 8px; padding-bottom: 6px; }
     .tab-btn { display: inline-block; padding: 6px 14px; margin-right: 6px; border-radius: 20px; font-size: 13px; font-weight: bold; border: 1px solid #dee2e6; background: #f8f9fa; color: #495057; cursor: pointer; }
     .tab-btn.active { background: #007bff; color: white; border-color: #007bff; }
 
-    .slots-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; max-height: 280px; overflow-y: auto; }
+    .slots-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; max-height: 260px; overflow-y: auto; }
     .slot-card { border: 1.5px solid #dee2e6; border-radius: 10px; padding: 10px 8px; text-align: center; cursor: pointer; background: white; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
     .slot-card.selected { border-color: #007bff; background: #007bff; color: white; }
-    .slot-card.disabled { background: #f1f3f5; border-color: #e9ecef; color: #adb5bd; cursor: not-allowed; }
+    .slot-card.disabled { background: #f1f3f5; border-color: #e9ecef; color: #adb5bd; cursor: not-allowed; opacity: 0.7; }
     .slot-time { font-size: 13px; font-weight: bold; }
     .slot-card.selected .slot-time { color: white; }
     .slot-rem { font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 10px; display: inline-block; }
@@ -32,25 +40,30 @@
     .rem-none { background: #e9ecef; color: #868e96; }
     .slot-card.selected .slot-rem { background: rgba(255,255,255,0.25); color: white; }
 
-    button.btn-primary { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; background: #007bff; color: white; margin-top: 24px; }
+    /* ★ 15分前通知設定スイッチ */
+    .notify-box { margin-top: 20px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; }
+    .notify-info { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: bold; color: #334155; }
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background-color: #cbd5e1; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider { background-color: #007bff; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    button.btn-primary { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; background: #007bff; color: white; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; }
     button:disabled { background: #bbb !important; cursor: not-allowed; }
-    .btn-outline { width: 100%; padding: 11px; border: 1px solid #007bff; border-radius: 8px; background: transparent; color: #007bff; font-weight: bold; margin-top: 10px; cursor: pointer; }
-    .btn-danger { width: 100%; padding: 11px; border: 1px solid #dc3545; border-radius: 8px; background: transparent; color: #dc3545; font-weight: bold; margin-top: 8px; cursor: pointer; }
+    .btn-outline { width: 100%; padding: 11px; border: 1px solid #007bff; border-radius: 8px; background: transparent; color: #007bff; font-weight: bold; margin-top: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-danger { width: 100%; padding: 11px; border: 1px solid #dc3545; border-radius: 8px; background: transparent; color: #dc3545; font-weight: bold; margin-top: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-text { width: 100%; background: none; border: none; color: #888; font-size: 12px; margin-top: 14px; text-decoration: underline; cursor: pointer; }
 
-    .keypad-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: flex-end; z-index: 1000; }
-    .keypad-sheet { background: white; width: 100%; max-width: 440px; border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box; }
-    .keypad-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .keypad-screen { font-size: 28px; font-weight: bold; color: #007bff; text-align: center; padding: 10px; background: #f8fbff; border-radius: 8px; margin-bottom: 14px; border: 1px solid #d0e2ff; }
-    .keypad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .num-key { padding: 14px 0; font-size: 22px; font-weight: bold; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; cursor: pointer; }
-    .num-key-fn { font-size: 16px; background: #eef2f6; color: #495057; }
-    .num-key-ok { background: #007bff; color: white; border-color: #007bff; font-size: 16px; }
-
-    #completeArea, #editArea { display: none; }
-    .qr-ticket-box { background: #fafafa; border: 2px dashed #007bff; padding: 16px; border-radius: 12px; margin: 16px 0; text-align: center; }
+    /* ★ QRコードロック / 解除コンテナ */
+    .qr-ticket-box { background: #fafafa; border: 2px dashed #007bff; padding: 18px; border-radius: 12px; margin: 16px 0; text-align: center; }
+    .qr-locked-view { padding: 20px 10px; color: #64748b; }
+    .qr-locked-view .lock-icon { width: 44px; height: 44px; fill: #94a3b8; margin-bottom: 8px; }
+    .qr-lock-msg { font-size: 13px; font-weight: bold; color: #475569; margin-top: 4px; }
     #ticketQrCode { display: flex; justify-content: center; margin: 10px 0; }
     .id-badge { font-size: 28px; font-weight: bold; color: #007bff; letter-spacing: 2px; }
+
     .timer-banner { padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 14px; font-weight: bold; }
     .timer-waiting { background: #e8f4fd; color: #0d6efd; border: 1px solid #b6d4fe; }
     .timer-alert { background: #fff3cd; color: #856404; border: 2px solid #ffc107; }
@@ -58,50 +71,103 @@
     .timer-ended { background: #e9ecef; color: #6c757d; }
     .ticket-info { text-align: left; background: #fafafa; border: 1px solid #eee; padding: 14px; border-radius: 8px; font-size: 14px; margin-top: 12px; }
     .ticket-info div { margin-bottom: 6px; }
+
+    /* テンキーモーダル */
+    .keypad-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: flex-end; z-index: 1000; }
+    .keypad-sheet { background: white; width: 100%; max-width: 440px; border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box; }
+    .keypad-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .keypad-screen { font-size: 28px; font-weight: bold; color: #007bff; text-align: center; padding: 10px; background: #f8fbff; border-radius: 8px; margin-bottom: 14px; border: 1px solid #d0e2ff; }
+    .keypad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .num-key { padding: 14px 0; font-size: 22px; font-weight: bold; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; cursor: pointer; }
+    .num-key-fn { font-size: 15px; background: #eef2f6; color: #495057; }
+    .num-key-ok { background: #007bff; color: white; border-color: #007bff; font-size: 16px; }
+
+    #completeArea, #editArea { display: none; }
   </style>
 </head>
 <body>
 
 <div class="card">
-  <!-- 予約入力フォーム -->
+  <!-- 1. 新規予約フォーム -->
   <div id="formArea">
-    <h2>企画予約フォーム</h2>
+    <h2>
+      <svg class="icon" viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+      企画予約フォーム
+    </h2>
     <div class="desc">
       個人情報の入力は不要です。任意のグループ名でご予約ください。<br>
-      予約完了後に受付用のQRコードが発行されます。
+      受付用QRコードは<b>予約時間の15分前</b>に自動で表示されます。
     </div>
 
     <form id="reservationForm">
-      <label>グループ名（呼び出し名）</label>
-      <input type="text" id="groupName" placeholder="グループ名を入力してください" required maxlength="15">
+      <label>
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        グループ名（呼び出し名）
+      </label>
+      <input type="text" id="groupName" placeholder="例: たこやき、チーム青" required maxlength="15">
 
-      <label>参加人数</label>
+      <label>
+        <svg class="icon" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        参加人数
+      </label>
       <div class="people-display" onclick="openKeypad('new')">
         <span class="people-val" id="peopleDisplay">2 名</span>
-        <span class="people-hint">変更</span>
+        <span class="people-hint">変更する</span>
       </div>
       <input type="hidden" id="people" value="2名">
 
-      <label>希望時間帯</label>
+      <label>
+        <svg class="icon" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+        希望時間帯
+      </label>
       <div id="slotTabs" class="slot-tabs-wrapper"></div>
       <div id="slotLoading" style="text-align:center; padding:16px; font-size:13px; color:#888;">空き枠を読み込み中...</div>
       <div id="slotsGrid" class="slots-grid"></div>
       <input type="hidden" id="selectedSlot" required>
 
-      <button type="submit" id="submitBtn" class="btn-primary">予約を確定する</button>
+      <!-- 15分前通知設定スイッチ -->
+      <div class="notify-box">
+        <div class="notify-info">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+          開始15分前に通知を受け取る
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="notifyToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <button type="submit" id="submitBtn" class="btn-primary">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        予約を確定する
+      </button>
     </form>
   </div>
 
-  <!-- チケット画面 -->
+  <!-- 2. チケット画面（15分前ロック制御付き） -->
   <div id="completeArea">
-    <h2>予約チケット</h2>
+    <h2>
+      <svg class="icon" viewBox="0 0 24 24"><path d="M22 10V6c0-1.11-.9-2-2-2H4c-1.1 0-1.99.89-1.99 2v4c1.1 0 1.99.9 1.99 2s-.89 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2zm-2-1.52c-1.25.77-2 2.17-2 3.52s.75 2.75 2 3.52V18H4v-1.52c1.25-.77 2-2.17 2-3.52s-.75-2.75-2-3.52V6h16v2.48z"/></svg>
+      予約チケット
+    </h2>
     <div id="countdownBanner" class="timer-banner timer-waiting">計算中...</div>
     
+    <!-- QRコード表示エリア（15分前ロック） -->
     <div class="qr-ticket-box">
-      <div style="font-size:12px; color:#555; font-weight:bold;">[受付提示用QRコード]</div>
-      <div id="ticketQrCode"></div>
-      <div class="id-badge" id="dispId">----</div>
-      <div style="font-size:11px; color:#777;">受付スタッフにこの画面をご提示ください</div>
+      <!-- ロック時表示 -->
+      <div id="qrLockedView" class="qr-locked-view">
+        <svg class="lock-icon" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+        <div style="font-size:14px; font-weight:bold;">受付用QRコードはロックされています</div>
+        <div class="qr-lock-msg" id="qrLockMessage">開始15分前に自動で表示されます</div>
+      </div>
+
+      <!-- アンロック時表示 -->
+      <div id="qrUnlockedView" style="display:none;">
+        <div style="font-size:12px; color:#555; font-weight:bold;">[受付提示用QRコード]</div>
+        <div id="ticketQrCode"></div>
+        <div class="id-badge" id="dispId">----</div>
+        <div style="font-size:11px; color:#777;">受付スタッフにこの画面をご提示ください</div>
+      </div>
     </div>
 
     <div class="ticket-info">
@@ -112,17 +178,23 @@
 
     <div style="background:#fff3cd; color:#856404; padding:10px; border-radius:8px; font-size:12px; margin-top:12px;">
       [ご注意]<br>
-      充電切れや誤操作による画面紛失を防ぐため、この画面のスクリーンショットを保存しておくことを推奨します。
+      充電切れや誤操作による紛失を防ぐため、この画面のスクリーンショットを保存しておくことを推奨します。
     </div>
 
     <div style="margin-top: 14px;">
-      <button type="button" class="btn-outline" id="toEditBtn">予約内容を変更する</button>
-      <button type="button" class="btn-danger" id="cancelBtn">予約をキャンセルする</button>
+      <button type="button" class="btn-outline" id="toEditBtn">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        予約内容を変更する
+      </button>
+      <button type="button" class="btn-danger" id="cancelBtn">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        予約をキャンセルする
+      </button>
       <button type="button" class="btn-text" id="resetBtn">画面を閉じて新しく予約する</button>
     </div>
   </div>
 
-  <!-- 変更フォーム -->
+  <!-- 3. 変更フォーム -->
   <div id="editArea">
     <h2>予約内容の変更</h2>
     <form id="editForm">
@@ -132,7 +204,7 @@
       <label>参加人数</label>
       <div class="people-display" onclick="openKeypad('edit')">
         <span class="people-val" id="editPeopleDisplay">2 名</span>
-        <span class="people-hint">変更</span>
+        <span class="people-hint">変更する</span>
       </div>
       <input type="hidden" id="editPeople" value="2名">
 
@@ -153,7 +225,7 @@
   <div class="keypad-sheet">
     <div class="keypad-header">
       <b style="font-size:15px;">参加人数の入力</b>
-      <button type="button" style="background:none; border:none; font-size:15px; cursor:pointer;" onclick="closeKeypad()">閉じる</button>
+      <button type="button" style="background:none; border:none; font-size:14px; cursor:pointer; font-weight:bold;" onclick="closeKeypad()">閉じる</button>
     </div>
     <div class="keypad-screen" id="keypadScreen">2 名</div>
     <div class="keypad-grid">
@@ -182,6 +254,7 @@
     window.location.href = "index.html";
   }
 
+  // テンキー処理
   let keypadTarget = "new";
   let keypadBuffer = "2";
 
@@ -212,6 +285,7 @@
     closeKeypad();
   }
 
+  // スロット選択UI
   let rawSlotsData = [];
   function renderSlotUI(containerGrid, containerTabs, inputHidden, curSlot = null) {
     containerTabs.innerHTML = "";
@@ -290,42 +364,96 @@
     }
   }
 
+  // ==========================================
+  // ★ カウントダウン・15分前QRロック＆通知処理
+  // ==========================================
   let countdownInterval = null;
+  let hasSent15MinNotice = false;
+  let qrGenerated = false;
+
   function parseSlotTime(slotStr) {
     if (!slotStr) return null;
     const parts = slotStr.split("-").map(s => s.trim());
     if (parts.length < 2) return null;
     const [sh, sm] = parts[0].split(":").map(Number), [eh, em] = parts[1].split(":").map(Number);
     const now = new Date();
-    return { start: new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0), end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0) };
+    return { 
+      start: new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0), 
+      end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0) 
+    };
   }
 
-  function startCountdown(slotStr) {
+  function startCountdown(ticketData) {
     if (countdownInterval) clearInterval(countdownInterval);
     const banner = document.getElementById("countdownBanner");
+    const qrLockedView = document.getElementById("qrLockedView");
+    const qrUnlockedView = document.getElementById("qrUnlockedView");
+    const qrLockMsg = document.getElementById("qrLockMessage");
+
     function update() {
-      const times = parseSlotTime(slotStr);
+      const times = parseSlotTime(ticketData.slot);
       if (!times) return;
       const now = new Date();
-      const diffStart = times.start - now, diffEnd = times.end - now;
+      const diffStart = times.start - now;
+      const diffEnd = times.end - now;
 
+      // 枠終了
       if (diffEnd <= 0) {
         banner.className = "timer-banner timer-ended";
-        banner.innerHTML = "この予約枠の案内は終了しました";
-      } else if (diffStart <= 0) {
-        banner.className = "timer-banner timer-active";
-        banner.innerHTML = "<b>[現在案内中] 受付へお越しください</b>";
-      } else {
-        const min = Math.floor(diffStart / 60000), sec = Math.floor((diffStart % 60000) / 1000);
-        if (min < 15) {
+        banner.innerHTML = "この予約枠の案内時間は終了しました";
+        qrLockedView.style.display = "block";
+        qrUnlockedView.style.display = "none";
+        qrLockMsg.textContent = "案内時間が終了したためQRコードは利用できません";
+        return;
+      }
+
+      // 開始15分前を切った（アンロック状態：案内中含む）
+      if (diffStart <= 15 * 60 * 1000) {
+        // ★ QRコードを生成してアンロック
+        qrLockedView.style.display = "none";
+        qrUnlockedView.style.display = "block";
+        if (!qrGenerated) {
+          const qrContainer = document.getElementById("ticketQrCode");
+          qrContainer.innerHTML = "";
+          new QRCode(qrContainer, { text: ticketData.id, width: 140, height: 140 });
+          qrGenerated = true;
+        }
+
+        // ★ 15分前プッシュ通知の発火
+        if (!hasSent15MinNotice && ticketData.notify) {
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("【企画案内】まもなく開始時間です", {
+              body: `ご予約の時間（${ticketData.slot}）の15分前になりました。QRコードが表示されましたので受付前へお越しください。`,
+              icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23007bff' d='M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z'/></svg>"
+            });
+          }
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          hasSent15MinNotice = true;
+        }
+
+        if (diffStart <= 0) {
+          banner.className = "timer-banner timer-active";
+          banner.innerHTML = "<b>[現在案内中] 受付へお越しください</b>";
+        } else {
+          const min = Math.floor(diffStart / 60000), sec = Math.floor((diffStart % 60000) / 1000);
           banner.className = "timer-banner timer-alert";
           banner.innerHTML = `<b>[まもなく開始] 受付前へお越しください（あと ${min}分${sec}秒）</b>`;
-        } else {
-          banner.className = "timer-banner timer-waiting";
-          banner.innerHTML = `開始まで あと <b>${min}分</b>`;
         }
+      } else {
+        // 15分以上前（★ QRコードをロック）
+        qrLockedView.style.display = "block";
+        qrUnlockedView.style.display = "none";
+        
+        const unlockTime = new Date(times.start.getTime() - 15 * 60 * 1000);
+        const pad = n => String(n).padStart(2, "0");
+        qrLockMsg.textContent = `開始15分前（${pad(unlockTime.getHours())}:${pad(unlockTime.getMinutes())}）に表示されます`;
+
+        const min = Math.floor(diffStart / 60000);
+        banner.className = "timer-banner timer-waiting";
+        banner.innerHTML = `開始まで あと <b>${min}分</b>`;
       }
     }
+
     update();
     countdownInterval = setInterval(update, 1000);
   }
@@ -340,13 +468,11 @@
     document.getElementById("dispGroup").textContent = ticketData.groupName;
     document.getElementById("dispPeople").textContent = ticketData.people;
 
-    const qrContainer = document.getElementById("ticketQrCode");
-    qrContainer.innerHTML = "";
-    new QRCode(qrContainer, { text: ticketData.id, width: 140, height: 140 });
-
-    startCountdown(ticketData.slot);
+    qrGenerated = false;
+    startCountdown(ticketData);
   }
 
+  // 初期化
   window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem("my_bunkasai_ticket");
     if (saved) {
@@ -355,12 +481,21 @@
     loadSlots(false);
   });
 
+  // 予約送信
   document.getElementById("reservationForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const slotVal = document.getElementById("selectedSlot").value;
     if (!slotVal) {
       alert("希望する時間帯を選択してください。");
       return;
+    }
+
+    // 通知許可の確認（スイッチがオンの場合）
+    const wantNotify = document.getElementById("notifyToggle").checked;
+    if (wantNotify && "Notification" in window && Notification.permission !== "granted") {
+      try {
+        await Notification.requestPermission();
+      } catch (err) {}
     }
 
     const btn = document.getElementById("submitBtn");
@@ -378,7 +513,13 @@
       const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
       const r = await res.json();
       if (r.success) {
-        const ticket = { id: r.id, slot: r.slot, groupName: r.groupName, people: r.people };
+        const ticket = { 
+          id: r.id, 
+          slot: r.slot, 
+          groupName: r.groupName, 
+          people: r.people,
+          notify: wantNotify 
+        };
         localStorage.setItem("my_bunkasai_ticket", JSON.stringify(ticket));
         showTicket(ticket);
       } else {
@@ -392,6 +533,7 @@
     }
   });
 
+  // キャンセル
   document.getElementById("cancelBtn").addEventListener("click", async () => {
     const saved = JSON.parse(localStorage.getItem("my_bunkasai_ticket"));
     if (!confirm(`予約（${saved.id}）をキャンセルしますか？`)) return;
@@ -400,6 +542,7 @@
     location.reload();
   });
 
+  // 変更画面
   document.getElementById("toEditBtn").addEventListener("click", () => {
     const saved = JSON.parse(localStorage.getItem("my_bunkasai_ticket"));
     document.getElementById("editGroupName").value = saved.groupName;
@@ -415,6 +558,7 @@
     showTicket(JSON.parse(localStorage.getItem("my_bunkasai_ticket")));
   });
 
+  // 変更送信
   document.getElementById("editForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const slotVal = document.getElementById("editSelectedSlot").value;
@@ -432,7 +576,13 @@
     const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
     const r = await res.json();
     if (r.success) {
-      const updated = { id: r.id, slot: r.slot, groupName: r.groupName, people: r.people };
+      const updated = { 
+        id: r.id, 
+        slot: r.slot, 
+        groupName: r.groupName, 
+        people: r.people,
+        notify: saved.notify ?? true 
+      };
       localStorage.setItem("my_bunkasai_ticket", JSON.stringify(updated));
       alert("予約内容を変更しました。");
       showTicket(updated);
